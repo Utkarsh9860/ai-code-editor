@@ -10,7 +10,7 @@ app.use(express.json());
 
 /* ================= FIX CODE ================= */
 app.post("/fix", async (req, res) => {
-  const { code } = req.body;
+  const { code, language } = req.body;
 
   try {
     const response = await axios.post(
@@ -21,17 +21,15 @@ app.post("/fix", async (req, res) => {
           {
             role: "user",
             content: `
-You are a strict code reviewer.
+You are a strict ${language} code reviewer.
 
-ONLY do this:
-1. If code has errors → fix it
-2. If code is already correct → say "Code is correct"
-3. DO NOT invent fake errors
-4. DO NOT change correct code
+Rules:
+- Fix errors only if present
+- If correct → say "Code is correct"
+- DO NOT modify correct code
+- DO NOT mix languages
 
-Return format:
-- First: Corrected code (ONLY if needed)
-- Then: Real errors (if any)
+Return ONLY valid ${language} code.
 
 Code:
 ${code}
@@ -47,16 +45,16 @@ ${code}
       }
     );
 
-    const result = response.data.choices[0].message.content;
-    res.json({ result });
-
+    res.json({
+      result: response.data.choices[0].message.content,
+    });
   } catch (error) {
     console.error("FIX ERROR:", error.response?.data || error.message);
     res.status(500).json({ error: "AI Error" });
   }
 });
 
-/* ================= EXPLAIN CODE ================= */
+/* ================= EXPLAIN ================= */
 app.post("/explain", async (req, res) => {
   const { code } = req.body;
 
@@ -68,7 +66,7 @@ app.post("/explain", async (req, res) => {
         messages: [
           {
             role: "user",
-            content: `Explain this code line by line in simple terms:\n\n${code}`,
+            content: `Explain this code line by line:\n\n${code}`,
           },
         ],
       },
@@ -80,16 +78,16 @@ app.post("/explain", async (req, res) => {
       }
     );
 
-    const result = response.data.choices[0].message.content;
-    res.json({ result });
-
+    res.json({
+      result: response.data.choices[0].message.content,
+    });
   } catch (error) {
     console.error("EXPLAIN ERROR:", error.response?.data || error.message);
     res.status(500).json({ error: "AI Error" });
   }
 });
 
-/* ================= RUN CODE (AI SIMULATION) ================= */
+/* ================= RUN ================= */
 app.post("/run", async (req, res) => {
   const { code, language } = req.body;
 
@@ -102,14 +100,13 @@ app.post("/run", async (req, res) => {
           {
             role: "user",
             content: `
-You are a code execution engine.
+You are a ${language} code execution engine.
 
-ONLY do this:
-- If code is valid → show EXACT output
-- If error → show real error
-- DO NOT explain anything
-
-Language: ${language}
+STRICT RULES:
+- If correct → return ONLY output
+- If error → return ONLY error
+- DO NOT explain
+- DO NOT mix languages
 
 Code:
 ${code}
@@ -125,9 +122,9 @@ ${code}
       }
     );
 
-    const output = response.data.choices[0].message.content;
-    res.json({ output });
-
+    res.json({
+      output: response.data.choices[0].message.content,
+    });
   } catch (error) {
     console.error("RUN ERROR:", error.response?.data || error.message);
     res.status(500).json({ error: "Execution Error" });
