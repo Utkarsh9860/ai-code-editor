@@ -16,20 +16,26 @@ app.post("/fix", async (req, res) => {
     const response = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
-        model: "openai/gpt-3.5-turbo",
+        model: "deepseek/deepseek-chat",
+        max_tokens: 500,
+        temperature: 0,
+
         messages: [
           {
             role: "user",
-            content: `
-You are a strict ${language} code reviewer.
+          content: `
+You are a code correction engine.
 
-Rules:
-- Fix errors only if present
-- If correct → say "Code is correct"
-- DO NOT modify correct code
-- DO NOT mix languages
-
-Return ONLY valid ${language} code.
+STRICT RULES:
+1. Return ONLY corrected ${language} code.
+2. Do NOT explain anything.
+3. Do NOT use markdown.
+4. Do NOT use \`\`\`.
+5. Do NOT add comments.
+6. Do NOT add text before code.
+7. Do NOT add text after code.
+8. If code is already correct, return the original code exactly.
+9. Do MAKE THE CODE OPTIMIZED and CLEAN, MAKE THE PROGRAM BETTER.
 
 Code:
 ${code}
@@ -49,24 +55,40 @@ ${code}
       result: response.data.choices[0].message.content,
     });
   } catch (error) {
-    console.error("FIX ERROR:", error.response?.data || error.message);
-    res.status(500).json({ error: "AI Error" });
+    console.error(
+      "FIX ERROR:",
+      error.response?.data || error.message
+    );
+
+    res.status(500).json({
+      error:
+        error.response?.data?.error?.message ||
+        error.message,
+    });
   }
 });
 
-/* ================= EXPLAIN ================= */
+/* ================= EXPLAIN CODE ================= */
 app.post("/explain", async (req, res) => {
-  const { code } = req.body;
+  const { code, language } = req.body;
 
   try {
     const response = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
-        model: "meta-llama/llama-3-8b-instruct",
+        model: "deepseek/deepseek-chat",
+        max_tokens: 700,
+        temperature: 0.3,
+
         messages: [
           {
             role: "user",
-            content: `Explain this code line by line:\n\n${code}`,
+            content: `
+Explain this ${language} code line by line in simple words.
+
+Code:
+${code}
+`,
           },
         ],
       },
@@ -82,12 +104,20 @@ app.post("/explain", async (req, res) => {
       result: response.data.choices[0].message.content,
     });
   } catch (error) {
-    console.error("EXPLAIN ERROR:", error.response?.data || error.message);
-    res.status(500).json({ error: "AI Error" });
+    console.error(
+      "EXPLAIN ERROR:",
+      error.response?.data || error.message
+    );
+
+    res.status(500).json({
+      error:
+        error.response?.data?.error?.message ||
+        error.message,
+    });
   }
 });
 
-/* ================= RUN ================= */
+/* ================= RUN CODE ================= */
 app.post("/run", async (req, res) => {
   const { code, language } = req.body;
 
@@ -95,7 +125,10 @@ app.post("/run", async (req, res) => {
     const response = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
-        model: "openai/gpt-3.5-turbo",
+        model: "deepseek/deepseek-chat",
+        max_tokens: 300,
+        temperature: 0,
+
         messages: [
           {
             role: "user",
@@ -103,9 +136,10 @@ app.post("/run", async (req, res) => {
 You are a ${language} code execution engine.
 
 STRICT RULES:
-- If correct → return ONLY output
-- If error → return ONLY error
+- If code is correct → return ONLY output
+- If code has error → return ONLY error
 - DO NOT explain
+- DO NOT add extra text
 - DO NOT mix languages
 
 Code:
@@ -126,8 +160,16 @@ ${code}
       output: response.data.choices[0].message.content,
     });
   } catch (error) {
-    console.error("RUN ERROR:", error.response?.data || error.message);
-    res.status(500).json({ error: "Execution Error" });
+    console.error(
+      "RUN ERROR:",
+      error.response?.data || error.message
+    );
+
+    res.status(500).json({
+      error:
+        error.response?.data?.error?.message ||
+        error.message,
+    });
   }
 });
 
